@@ -1,117 +1,220 @@
-# Shayanja - Crypto Payment Component
+# 🚀 Crypto Payment API
 
-A modern, production-ready React component for accepting cryptocurrency payments. Built with TypeScript, React, and Express.
+A robust, open source, production-ready API for processing cryptocurrency payments. Built with Express, TypeScript, and blockchain technology.
+Simply Run the backend with your own mnemonic and you're ready to go!
+The Server will use unique derivation paths with your mnemonic which you can use to access your payments.
 
-![Crypto Payment Demo](./demo.gif)
+## 🔧 Installation
 
-## Features
+1. **Clone the Repository**:
 
-- 🔒 Secure cryptocurrency payments (ETH, BTC)
-- ⚡ Real-time payment monitoring
-- 🎨 Modern, responsive UI with Tailwind CSS
-- 📱 Mobile-friendly QR code scanning
-- ⏱️ Payment expiry management
-- 🔄 Automatic exchange rate updates
-- 🪝 Webhook support for payment notifications
+## 🔥 Getting Started
 
-## Quick Start
+1. **Install Dependencies**:
 
-```bash
-npm install @shayanja/crypto-payment
+Use the derivation paths and the mnemonic to retrieve your payemnts
+
+Use in tandum with
+[React Component](https://www.npmjs.com/package/@shayanja/react-crypto-payment)
+
+## ✨ Features
+
+- 💰 **Multi-Currency Support**
+
+  - ETH (Ethereum)
+  - Easily extensible for more cryptocurrencies
+
+- 🔒 **Security First**
+
+  - HD Wallet implementation
+  - Unique payment addresses for each transaction
+  - Secure key derivation
+  - No private keys stored on server
+
+- 🔄 **Real-Time Processing**
+
+  - Automatic payment detection
+  - Configurable confirmation thresholds
+  - Webhook notifications
+  - Payment expiry management
+
+- 🛠 **Developer Friendly**
+  - RESTful API design
+  - Comprehensive error handling
+  - TypeScript support
+  - Swagger documentation
+  - Docker support
+
+## 🚦 API Endpoints
+
+### Create Payment
+
+```http
+POST /api/payment/create
 ```
 
-```tsx
-import { CryptoPayment } from '@shayanja/crypto-payment';
-
-function App() {
-  return (
-    <CryptoPayment
-      amount={99.99}
-      currency="USD"
-      supportedCurrencies={['ETH', 'BTC']}
-      onPaymentComplete={(txHash) => console.log('Payment complete:', txHash)}
-    />
-  );
+```json
+{
+  "amount": 0.1,
+  "currency": "ETH",
+  "webhookUrl": "https://your-server.com/webhook",
+  "expiresIn": 30
 }
 ```
 
-## Environment Variables
+### Check Payment Status
 
-```env
-MONGODB_URI=your_mongodb_uri
-ETHERSCAN_API_KEY=your_etherscan_api_key
-VITE_COINGECKO_API_KEY=your_coingecko_api_key
-ETHEREUM_MNEMONIC=your_ethereum_mnemonic
+```http
+POST /api/payment/check
 ```
 
-## Server Setup
+```json
+{
+  "address": "0x...",
+  "currency": "ETH",
+  "expectedAmount": 0.1
+}
+```
 
-1. Install dependencies:
+## 🛠 Installation
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/yourusername/crypto-payment-api
+cd crypto-payment-api
+```
+
+2. **Set up environment variables**
+
+```bash
+cp .env.template .env
+```
+
+Required variables:
+
+```env
+ETHERSCAN_API_KEY=your_etherscan_api_key
+ETHEREUM_MNEMONIC=your_secure_mnemonic
+CHAIN_ID=sepolia
+UNIQUE_PATHS_NUMS=1000
+```
+
+3. **Install dependencies**
+
 ```bash
 npm install
 ```
 
-2. Start the development server:
+4. **Start the server**
+
 ```bash
-npm run all
+# Development
+npm run dev
+
+# Production
+npm run build
+npm start
 ```
 
-## Component Props
+## 🐳 Docker Deployment
 
-| Prop | Type | Description |
-|------|------|-------------|
-| amount | number | Payment amount |
-| currency | string | Base currency (default: 'USD') |
-| supportedCurrencies | Array<'ETH' \| 'BTC'> | Accepted cryptocurrencies |
-| onPaymentComplete | (txHash: string) => void | Payment success callback |
-| onPaymentError | (error: Error) => void | Payment error callback |
-| description | string | Optional payment description |
+1. **Build and run with Docker Compose**
 
-## Webhook Integration
+```bash
+docker-compose up -d
+```
 
-The server sends webhook notifications for payment status updates. Configure your webhook URL when creating a payment:
+2. **Single container deployment**
+
+```bash
+docker build -t crypto-payment-api .
+docker run -p 3000:3000 crypto-payment-api
+```
+
+## 🔧 Configuration
+
+### Payment Settings
+
+- `UNIQUE_PATHS_NUMS`: Number of unique derivation paths (default: 1000)
+- `CHAIN_ID`: Ethereum network (mainnet, sepolia, etc.)
+
+### Blockchain Monitoring
+
+- Payment confirmation threshold: 1 confirmation
+- Payment expiry check: Every 5 minutes
+- Transaction monitoring: Every minute
+
+## 🪝 Webhook Events
 
 ```typescript
-const payment = await createPayment({
-  amount: 99.99,
-  currency: 'ETH',
-  webhookUrl: 'https://your-server.com/webhook'
-});
+// Payment Completed
+{
+  status: "completed",
+  address: "0x...",
+  currency: "ETH",
+  txHash: "0x...",
+  confirmations: 1,
+  timestamp: "2024-03-10T12:00:00Z"
+}
+
+// Payment Expired
+{
+  status: "expired",
+  address: "0x...",
+  currency: "ETH",
+  timestamp: "2024-03-10T12:00:00Z"
+}
 ```
 
-## Security Considerations
+## 🔒 Security Best Practices
 
-- Never store private keys in the frontend
-- Use environment variables for sensitive data
-- Implement rate limiting for API endpoints
-- Validate all user inputs
-- Monitor for suspicious activities
+1. **Environment Variables**
 
-## Production Deployment
+   - Never commit `.env` files
+   - Use strong mnemonics
+   - Rotate API keys regularly
 
-1. Build the frontend:
-```bash
-npm run build
+2. **Payment Processing**
+
+   - Unique address per payment
+   - Automatic payment expiry
+   - Confirmation thresholds
+
+3. **API Security**
+   - Rate limiting
+   - Input validation
+   - CORS configuration
+
+## 📦 Project Structure
+
+```
+src/
+├── server/
+│   ├── models/      # Database models
+│   ├── routes/      # API endpoints
+│   ├── services/    # Business logic
+│   └── utils/       # Helper functions
 ```
 
-2. Deploy the server:
-```bash
-docker build -t crypto-payment-server .
-docker run -p 3000:3000 crypto-payment-server
-```
+## 📝 License
 
-## Contributing
+MIT © [Shayan Talebi]
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## License
+## 📫 Support
 
-MIT License - see [LICENSE](LICENSE) for details
+- Documentation: [docs.example.com](https://docs.example.com)
+- Issues: [GitHub Issues](https://github.com/yourusername/crypto-payment-api/issues)
+- Email: support@example.com
 
-## Support
+## ⭐️ Show your support
 
-- Documentation: [docs.shayanja.com](https://docs.shayanja.com)
-- Issues: [GitHub Issues](https://github.com/shayanja/crypto-payment/issues)
-- Email: support@shayanja.com
+Give a ⭐️ if this project helped you!
