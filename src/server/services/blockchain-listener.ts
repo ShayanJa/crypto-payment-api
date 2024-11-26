@@ -8,7 +8,7 @@ export class BlockchainListener {
 
   constructor() {
     this.provider = new ethers.providers.EtherscanProvider(
-      "sepolia",
+      process.env.CHAIN_ID || "sepolia",
       process.env.ETHERSCAN_API_KEY
     );
     this.startListening();

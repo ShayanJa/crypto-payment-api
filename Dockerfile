@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY tsconfig.server.json ./
+COPY tsconfig.*.json ./
 
 # Install dependencies
 RUN npm install
@@ -13,10 +13,10 @@ RUN npm install
 COPY . .
 
 # Build TypeScript files
-RUN npm run build:server
+RUN npm run build
 
 # Expose the port
 EXPOSE 3000
 
 # Start the server
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist"]

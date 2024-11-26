@@ -3,7 +3,7 @@ import { PaymentModel } from "./models/payment";
 
 export type SupportedCrypto = "ETH" | "BTC";
 
-const UNIQUE_PATHS_NUMS = parseFloat(process.env.UNIQUE_PATHS_NUMS || "10");
+const UNIQUE_PATHS_NUMS = parseFloat(process.env.UNIQUE_PATHS_NUMS || "1000");
 export const generatePaymentAddress = async (
   currency: SupportedCrypto
 ): Promise<string[]> => {
