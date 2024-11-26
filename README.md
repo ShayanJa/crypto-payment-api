@@ -137,7 +137,7 @@ docker run -p 3000:3000 crypto-payment-api
 ### Payment Settings
 
 - `UNIQUE_PATHS_NUMS`: Number of unique derivation paths (default: 1000)
-- `CHAIN_ID`: Ethereum network (mainnet, sepolia, etc.)
+- `CHAIN_NAME`: Ethereum network (mainnet, sepolia, etc.)
 
 ### Blockchain Monitoring
 
@@ -196,6 +196,14 @@ src/
 │   ├── services/    # Business logic
 │   └── utils/       # Helper functions
 ```
+
+## Scripts
+
+```
+node scripts/getPrivateKeys.js "m/44'/60'/0'/0/872" "m/44'/60'/0'/0/871"
+```
+
+Run this to get the private keys from your derivation paths
 
 ## 📝 License
 
