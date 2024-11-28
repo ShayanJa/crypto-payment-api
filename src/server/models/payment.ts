@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-export type SupportedCrypto = "ETH" | "BTC";
+export type SupportedCrypto = "ETH" | "BTC" | "USDC";
 
 export interface Payment {
   address: string;
@@ -9,7 +9,6 @@ export interface Payment {
   status: "pending" | "completed" | "expired";
   txHash?: string;
   confirmations?: number;
-  derivationPath: string;
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -17,7 +16,7 @@ export interface Payment {
 
 const paymentSchema = new mongoose.Schema<Payment>({
   address: { type: String, required: true },
-  currency: { type: String, enum: ["ETH", "BTC"], required: true },
+  currency: { type: String, enum: ["ETH", "BTC", "USDC"], required: true },
   expectedAmount: { type: Number, required: true },
   webhookUrl: String,
   status: {
@@ -27,7 +26,6 @@ const paymentSchema = new mongoose.Schema<Payment>({
   },
   txHash: String,
   confirmations: Number,
-  derivationPath: String,
   expiresAt: { type: Date, required: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },

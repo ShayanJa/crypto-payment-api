@@ -6,16 +6,39 @@ import { generatePaymentAddress } from "../utils";
 
 const router = Router();
 
+const USDC_CONTRACT_ADDRESS = "0x5425890298aed601595a70AB815c96711a31Bc65";
+const USDC_ABI = [
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "account",
+        type: "address",
+      },
+    ],
+    name: "balanceOf",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+];
+
 const CreatePaymentSchema = z.object({
   amount: z.number().positive(),
-  currency: z.enum(["ETH", "BTC"]),
+  currency: z.enum(["ETH", "BTC", "USDC"]),
   webhookUrl: z.string().url().optional(),
-  expiresIn: z.number().min(1).max(60).default(30), // minutes
+  expiresIn: z.number().min(1).max(60).default(30),
 });
 
 const CheckPaymentSchema = z.object({
   address: z.string(),
-  currency: z.enum(["ETH", "BTC"]),
+  currency: z.enum(["ETH", "BTC", "USDC"]),
   expectedAmount: z.number().positive(),
 });
 
@@ -77,24 +100,57 @@ router.post("/check", async (req, res) => {
       });
     }
 
-    // For pending payments, check current status
+    const provider = new ethers.providers.JsonRpcProvider(
+      process.env.ETHEREUM_RPC_URL
+    );
+    const ethProvider = new ethers.providers.EtherscanProvider(
+      process.env.CHAIN_ID || "sepolia",
+      process.env.ETHERSCAN_API_KEY
+    );
+
     if (currency === "ETH") {
-      const provider = new ethers.providers.EtherscanProvider(
-        process.env.CHAIN_ID || "sepolia",
-        process.env.ETHERSCAN_API_KEY
-      );
-      const history = await provider.getHistory(address);
+      const history = await ethProvider.getHistory(address);
       const lastTx = history[history.length - 1];
-      console.log(history);
-      if (lastTx && lastTx.blockNumber) {
+      if (lastTx) {
         const latestBlock = await provider.getBlockNumber();
-        const confirmations = latestBlock - (lastTx?.blockNumber | 0);
+        const confirmations = latestBlock - lastTx.blockNumber;
         const receivedAmount = Number(ethers.utils.formatEther(lastTx.value));
 
         return res.json({
           isReceived: receivedAmount >= expectedAmount,
           txHash: lastTx.hash,
           confirmations,
+        });
+      }
+    }
+
+    if (currency === "USDC") {
+      const contract = new ethers.Contract(
+        USDC_CONTRACT_ADDRESS,
+        USDC_ABI,
+        provider
+      );
+      console.log(contract);
+      const balance = await contract.balanceOf(address);
+      console.log(balance);
+      const receivedAmount = Number(ethers.utils.formatUnits(balance, 6)); // USDC has 6 decimals
+
+      if (receivedAmount >= expectedAmount) {
+        const latestBlock = await provider.getBlockNumber();
+        const filter = contract.filters.Transfer(null, address);
+        const events = await contract.queryFilter(
+          filter,
+          latestBlock - 100,
+          latestBlock
+        );
+        const lastTransfer = events[events.length - 1];
+
+        return res.json({
+          isReceived: true,
+          confirmations: lastTransfer
+            ? latestBlock - lastTransfer.blockNumber
+            : 1,
+          txHash: lastTransfer ? lastTransfer.transactionHash : "usdc_transfer",
         });
       }
     }
@@ -119,11 +175,9 @@ router.post("/check", async (req, res) => {
       isReceived: false,
       status: "pending",
     });
-    return;
   } catch (error) {
     console.error("Payment check error:", error);
     res.status(400).json({ error: "Failed to check payment status" });
-    return;
   }
 });
 

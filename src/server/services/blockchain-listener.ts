@@ -3,27 +3,60 @@ import { ethers } from "ethers";
 import axios from "axios";
 import { PaymentModel } from "../models/payment";
 
+const USDC_CONTRACT_ADDRESS = "0x5425890298aed601595a70AB815c96711a31Bc65";
+const USDC_ABI = [
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "account",
+        type: "address",
+      },
+    ],
+    name: "balanceOf",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+];
+
 export class BlockchainListener {
-  private provider: ethers.providers.EtherscanProvider;
+  private ethProvider: ethers.providers.EtherscanProvider;
+  private provider: ethers.providers.JsonRpcProvider;
+  private usdcContract: ethers.Contract;
 
   constructor() {
-    this.provider = new ethers.providers.EtherscanProvider(
-      process.env.CHAIN_ID || "sepolia",
+    this.provider = new ethers.providers.JsonRpcProvider(
+      process.env.ETHEREUM_RPC_URL
+    );
+    this.usdcContract = new ethers.Contract(
+      USDC_CONTRACT_ADDRESS,
+      USDC_ABI,
+      this.provider
+    );
+    this.ethProvider = new ethers.providers.EtherscanProvider(
+      "sepolia",
       process.env.ETHERSCAN_API_KEY
     );
+
     this.startListening();
   }
 
   private async checkEthereumPayment(payment: any) {
     try {
-      const history = await this.provider.getHistory(payment.address);
+      const history = await this.ethProvider.getHistory(payment.address);
       const lastTx = history[history.length - 1];
 
       if (lastTx && lastTx.blockNumber) {
-        const latestBlock = await this.provider.getBlockNumber();
+        const latestBlock = await this.ethProvider.getBlockNumber();
         const confirmations = latestBlock - lastTx.blockNumber;
         const receivedAmount = Number(ethers.utils.formatEther(lastTx.value));
-        console.log(Number(lastTx.value));
 
         if (receivedAmount >= payment.expectedAmount && confirmations >= 1) {
           await this.markPaymentComplete(payment, lastTx.hash, confirmations);
@@ -37,6 +70,40 @@ export class BlockchainListener {
     }
   }
 
+  private async checkUSDCPayment(payment: any) {
+    try {
+      const balance = await this.usdcContract.balanceOf(payment.address);
+      const receivedAmount = Number(ethers.utils.formatUnits(balance, 6));
+
+      if (receivedAmount >= payment.expectedAmount) {
+        const latestBlock = await this.provider.getBlockNumber();
+        const filter = this.usdcContract.filters.Transfer(
+          null,
+          payment.address
+        );
+        const events = await this.usdcContract.queryFilter(
+          filter,
+          latestBlock - 100,
+          latestBlock
+        );
+        const lastTransfer = events[events.length - 1];
+
+        if (lastTransfer) {
+          await this.markPaymentComplete(
+            payment,
+            lastTransfer.transactionHash,
+            latestBlock - lastTransfer.blockNumber
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        `Error checking USDC payment for ${payment.address}:`,
+        error
+      );
+    }
+  }
+
   private async checkBitcoinPayment(payment: any) {
     try {
       const response = await axios.get(
@@ -45,7 +112,6 @@ export class BlockchainListener {
 
       const data = response.data;
       if (data.balance >= payment.expectedAmount * 100000000) {
-        // Convert to satoshis
         const lastTx = data.txrefs?.[0];
         if (lastTx && lastTx.confirmations >= 1) {
           await this.markPaymentComplete(
@@ -69,7 +135,6 @@ export class BlockchainListener {
     confirmations: number
   ) {
     try {
-      // Update payment status in database
       const updatedPayment = await PaymentModel.findOneAndUpdate(
         { _id: payment._id, status: "pending" },
         {
@@ -82,7 +147,6 @@ export class BlockchainListener {
       );
 
       if (updatedPayment && payment.webhookUrl) {
-        // Send webhook notification
         await axios
           .post(payment.webhookUrl, {
             status: "completed",
@@ -109,7 +173,7 @@ export class BlockchainListener {
 
   private async checkExpiredPayments() {
     try {
-      const expiredPayments = await PaymentModel.updateMany(
+      await PaymentModel.updateMany(
         {
           status: "pending",
           expiresAt: { $lt: new Date() },
@@ -120,7 +184,6 @@ export class BlockchainListener {
         }
       );
 
-      // Send webhook notifications for expired payments
       const payments = await PaymentModel.find({
         status: "expired",
         webhookUrl: { $exists: true },
@@ -153,10 +216,16 @@ export class BlockchainListener {
       const pendingPayments = await PaymentModel.find({ status: "pending" });
 
       for (const payment of pendingPayments) {
-        if (payment.currency === "ETH") {
-          await this.checkEthereumPayment(payment);
-        } else if (payment.currency === "BTC") {
-          await this.checkBitcoinPayment(payment);
+        switch (payment.currency) {
+          case "ETH":
+            await this.checkEthereumPayment(payment);
+            break;
+          case "USDC":
+            await this.checkUSDCPayment(payment);
+            break;
+          case "BTC":
+            await this.checkBitcoinPayment(payment);
+            break;
         }
       }
     } catch (error) {
@@ -165,12 +234,10 @@ export class BlockchainListener {
   }
 
   public startListening() {
-    // Check pending payments every minute
     cron.schedule("* * * * *", async () => {
       await this.checkPendingPayments();
     });
 
-    // Check for expired payments every 5 minutes
     cron.schedule("*/5 * * * *", async () => {
       await this.checkExpiredPayments();
     });

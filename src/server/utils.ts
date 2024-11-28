@@ -1,13 +1,13 @@
 import { ethers } from "ethers";
 import { PaymentModel } from "./models/payment";
 
-export type SupportedCrypto = "ETH" | "BTC";
+export type SupportedCrypto = "ETH" | "BTC" | "USDC";
 
 const UNIQUE_PATHS_NUMS = parseFloat(process.env.UNIQUE_PATHS_NUMS || "1000");
 export const generatePaymentAddress = async (
   currency: SupportedCrypto
 ): Promise<string[]> => {
-  if (currency === "ETH") {
+  if (currency === "ETH" || currency == "USDC") {
     if (process.env.ETHEREUM_MNEMONIC) {
       // Don't save the private key only public public key is needed for payment processing
       // Generate a unique wallet for each payment to avoid conflicts
